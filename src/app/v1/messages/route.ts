@@ -17,7 +17,7 @@ import { isCloudflareSync, runAfterResponse } from '@/lib/cf-env';
 import type { AnthropicMessagesRequest } from '@/lib/types';
 
 export const runtime = 'nodejs';
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const batchRecorder = getBatchRecorder();
 

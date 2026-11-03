@@ -21,7 +21,7 @@ import { chunkHasUsage, jsonStringFieldLength, createByteCountingStream, estimat
 import { isCloudflareSync, runAfterResponse } from '@/lib/cf-env';
 
 export const runtime = 'nodejs';
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const batchRecorder = getBatchRecorder();
 

@@ -20,7 +20,7 @@ import { chunkHasUsage, jsonStringFieldLength, createByteCountingStream, estimat
 import { isCloudflareSync, runAfterResponse } from '@/lib/cf-env';
 
 export const runtime = 'nodejs';
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 /** Rough chars-per-token estimate for fallback */
 const CHARS_PER_TOKEN = 4;
