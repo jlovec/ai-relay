@@ -1163,6 +1163,7 @@ function validateCustomProviders(customProviders: any): Record<string, ProviderC
         ? val.models.filter((m: any) => m && typeof m === 'object' && typeof m.id === 'string' && typeof m.displayName === 'string') 
         : [],
       modelMapping: val.modelMapping && typeof val.modelMapping === 'object' && !Array.isArray(val.modelMapping) ? val.modelMapping : undefined,
+      sessionHeader: val.sessionHeader === 'opencode-go' ? 'opencode-go' : undefined,
       isCustom: true,
     };
     validated[val.name] = config;

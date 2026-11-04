@@ -4,6 +4,7 @@
 
 import type { ChatCompletionRequest, ChatCompletionResponse } from '../types';
 import { RELAY_MANAGED_HEADERS } from './header-policy';
+import { applySessionHeader, type SessionHeaderKind } from './session-header';
 
 /**
  * Transform OpenAI-format request to Anthropic format.
@@ -125,7 +126,8 @@ export function buildHeaders(
   isStream: boolean,
   userAgent?: string,
   customUserAgent?: string,
-  passthroughHeaders?: Record<string, string>
+  passthroughHeaders?: Record<string, string>,
+  sessionHeader?: SessionHeaderKind
 ): Record<string, string> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -160,6 +162,10 @@ export function buildHeaders(
   // RELAY_MANAGED_HEADERS blocks any case-variant of user-agent from the
   // passthrough loop above, so a plain assignment cannot create a duplicate.
   headers['User-Agent'] = customUserAgent || resolveUpstreamUserAgent(userAgent, headerFormat);
+
+  // Upstreams that demand a conversation id (OpenCode Go) get one resolved from
+  // the client header when present, or generated when absent.
+  applySessionHeader(sessionHeader, headers, passthroughHeaders);
 
   return headers;
 }

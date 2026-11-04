@@ -162,7 +162,7 @@ async function fetchUpstreamWithUserAgentCandidates(input: {
     try {
       response = await fetch(input.url, {
         method: 'POST',
-        headers: buildHeaders(input.provider.headerFormat, input.apiKey, input.isStream, input.clientUserAgent, customUserAgent, input.passthroughHeaders),
+        headers: buildHeaders(input.provider.headerFormat, input.apiKey, input.isStream, input.clientUserAgent, customUserAgent, input.passthroughHeaders, input.provider.sessionHeader),
         body: payload,
         signal: controller?.signal,
       });

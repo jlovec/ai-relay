@@ -69,6 +69,7 @@ export async function POST(request: NextRequest) {
     envKeyField: body.envKeyField || `${name.toUpperCase()}_KEYS`,
     envBaseUrlField: body.envBaseUrlField || undefined,
     userAgent: typeof body.userAgent === 'string' && body.userAgent.trim() ? body.userAgent.trim() : undefined,
+    sessionHeader: body.sessionHeader === 'opencode-go' ? ('opencode-go' as const) : undefined,
     models: Array.isArray(models) ? models : [],
     isCustom: true,
   };
