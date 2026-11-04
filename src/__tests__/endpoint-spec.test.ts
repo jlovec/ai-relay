@@ -32,6 +32,17 @@ describe('endpoint spec table', () => {
     expect(ENDPOINTS.rerank.stream).toBeNull();
   });
 
+  it('only remaps model names on chat-family endpoints', () => {
+    // Chat capability is substitutable across vendors, so a fallback may swap
+    // gpt-5.5 for an equivalent model. Embedding and rerank vectors are not —
+    // the model name is the capability, and it must reach the fallback intact.
+    expect(ENDPOINTS.chat.modelRemap).toBe('remap');
+    expect(ENDPOINTS.anthropicMessages.modelRemap).toBe('remap');
+    expect(ENDPOINTS.responses.modelRemap).toBe('remap');
+    expect(ENDPOINTS.embeddings.modelRemap).toBe('keep');
+    expect(ENDPOINTS.rerank.modelRemap).toBe('keep');
+  });
+
   it('only needs stream translation when protocols differ', () => {
     expect(streamNeedsTranslation(ENDPOINTS.chat, 'openai')).toBe(false);
     expect(streamNeedsTranslation(ENDPOINTS.chat, 'anthropic')).toBe(true);

@@ -86,10 +86,30 @@ export function clearProvidersCache(): void {
 }
 
 /**
+ * Whether one configured prefix selects the given (lower-cased) model id.
+ *
+ * A prefix that ends in a separator — `-`, `.`, `_` or `/` — is a wildcard and
+ * matches every id that starts with it. Anything else is an exact id. The
+ * separator set includes `/` because namespaced model ids are common on
+ * aggregate gateways (`BAAI/bge-m3`, `Qwen/Qwen3-8B`, `zai-org/GLM-5.3`) and a
+ * bare `BAAI/` prefix would otherwise never match anything.
+ *
+ * This is the single definition of prefix matching — every consumer
+ * (provider resolution, smart-routing candidates, alias validation, fallback
+ * model mapping) goes through it so the four call sites cannot drift apart.
+ */
+export function matchesModelPrefix(prefix: string, lowerModel: string): boolean {
+  const p = prefix.toLowerCase();
+  const isWildcard =
+    p.endsWith('-') || p.endsWith('.') || p.endsWith('_') || p.endsWith('/');
+  return isWildcard ? lowerModel.startsWith(p) : lowerModel === p;
+}
+
+/**
  * Whether a provider can serve the given (already alias-resolved, lower-cased)
  * model. Mirrors the matching used by resolveProvider: an exact model-id match
  * in the provider's `models` list, or a prefix match against `modelPrefixes`
- * (wildcard prefixes end with -/./_; otherwise the prefix must equal the model).
+ * (see matchesModelPrefix for what counts as a wildcard).
  *
  * Used by smart routing to restrict the candidate pool to providers that
  * actually support the requested model, rather than every configured provider.
@@ -100,15 +120,7 @@ export function providerSupportsModel(provider: ProviderConfig, lowerModel: stri
       if (m.id && m.id.toLowerCase() === lowerModel) return true;
     }
   }
-  for (const prefix of provider.modelPrefixes) {
-    const isWildcard = prefix.endsWith('-') || prefix.endsWith('.') || prefix.endsWith('_');
-    if (isWildcard) {
-      if (lowerModel.startsWith(prefix)) return true;
-    } else if (lowerModel === prefix) {
-      return true;
-    }
-  }
-  return false;
+  return provider.modelPrefixes.some((prefix) => matchesModelPrefix(prefix, lowerModel));
 }
 
 /**
@@ -152,21 +164,9 @@ export async function resolveProvider(model: string): Promise<ProviderConfig | n
 
   for (const provider of Object.values(allProviders)) {
     for (const prefix of provider.modelPrefixes) {
-      const isWildcard = prefix.endsWith('-') || prefix.endsWith('.') || prefix.endsWith('_');
-      if (isWildcard) {
-        if (lowerModel.startsWith(prefix)) {
-          if (prefix.length > longestPrefixLength) {
-            longestPrefixLength = prefix.length;
-            bestProvider = provider;
-          }
-        }
-      } else {
-        if (lowerModel === prefix) {
-          if (prefix.length > longestPrefixLength) {
-            longestPrefixLength = prefix.length;
-            bestProvider = provider;
-          }
-        }
+      if (matchesModelPrefix(prefix, lowerModel) && prefix.length > longestPrefixLength) {
+        longestPrefixLength = prefix.length;
+        bestProvider = provider;
       }
     }
   }
@@ -299,12 +299,12 @@ export async function resolveFallbackModel(originalModel: string, targetProvider
   const targetProvider = allProviders[targetProviderName];
 
   // 1. If the original model already belongs to the target provider — by prefix
-  // or by an exact entry in its model list — use it unchanged. Compare prefixes
-  // case-insensitively: model IDs carry mixed case (BAAI/bge-m3) while the
-  // lookup key is lowercased, so a raw startsWith() would never match.
+  // or by an exact entry in its model list — use it unchanged. Prefix and id
+  // comparisons are case-insensitive: model IDs carry mixed case (BAAI/bge-m3)
+  // while the lookup key is lowercased.
   if (targetProvider) {
     for (const prefix of targetProvider.modelPrefixes) {
-      if (lowerModel.startsWith(prefix.toLowerCase())) {
+      if (matchesModelPrefix(prefix, lowerModel)) {
         return originalModel;
       }
     }

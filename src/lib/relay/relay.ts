@@ -485,8 +485,12 @@ async function tryProviderWithRetries(
 
     const isAnthropic = provider.headerFormat === 'anthropic';
 
-    // Resolve target model and its alias for the current provider
-    const targetModel = await resolveFallbackModel(body.model, provider.name);
+    // Resolve target model and its alias for the current provider.
+    // Endpoints whose model name *is* the capability (embeddings, rerank) must
+    // reach the fallback untouched — see EndpointSpec.modelRemap.
+    const targetModel = ENDPOINTS[apiType].modelRemap === 'keep'
+      ? body.model
+      : await resolveFallbackModel(body.model, provider.name);
     const resolvedAlias = await resolveModelAlias(targetModel);
     // Map virtual model name to real upstream model ID (e.g. mimo-v2.5-pro-coding → mimo-v2.5-pro)
     const resolvedModel = resolveUpstreamModel(resolvedAlias, provider);

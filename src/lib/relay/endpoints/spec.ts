@@ -80,6 +80,20 @@ export interface EndpointSpec {
    */
   requireModelPrefix?: string;
 
+  /**
+   * Whether falling back to another provider may rewrite the model name into
+   * that provider's equivalent model.
+   *
+   *   remap — the capability is substitutable across vendors (chat family).
+   *           `gpt-5.5` on an OpenAI outage becomes `deepseek-v4-pro`.
+   *   keep  — the model name *is* the capability (embeddings, rerank). A
+   *           `bge-m3` vector from one vendor is not interchangeable with
+   *           another's, so the name must reach the fallback untouched. The
+   *           request will usually 404 there, which is the honest outcome:
+   *           a silent swap to a semantically different model is worse.
+   */
+  modelRemap: 'remap' | 'keep';
+
   /** Client-side SSE framing; null when the endpoint has no streaming mode. */
   stream: StreamKind;
 
@@ -107,6 +121,7 @@ export const ENDPOINTS: Record<RelayApiType, EndpointSpec> = {
       { field: 'model', kind: 'nonEmptyString' },
       { field: 'messages', kind: 'array', notEmpty: true },
     ],
+    modelRemap: 'remap',
     stream: 'openai-chat',
     usage: {
       prompt: ['usage.prompt_tokens', 'usage.input_tokens'],
@@ -126,6 +141,7 @@ export const ENDPOINTS: Record<RelayApiType, EndpointSpec> = {
       { field: 'messages', kind: 'array', notEmpty: true },
     ],
     requireModelPrefix: 'claude-',
+    modelRemap: 'remap',
     stream: 'anthropic',
     usage: {
       prompt: ['usage.input_tokens', 'usage.prompt_tokens'],
@@ -143,6 +159,7 @@ export const ENDPOINTS: Record<RelayApiType, EndpointSpec> = {
       { field: 'model', kind: 'nonEmptyString' },
       { field: 'input', notEmpty: true },
     ],
+    modelRemap: 'remap',
     stream: 'responses',
     usage: {
       prompt: ['usage.prompt_tokens', 'usage.input_tokens'],
@@ -160,6 +177,7 @@ export const ENDPOINTS: Record<RelayApiType, EndpointSpec> = {
       { field: 'model', kind: 'nonEmptyString' },
       { field: 'input', notEmpty: true },
     ],
+    modelRemap: 'keep',
     stream: null,
     usage: {
       prompt: ['usage.prompt_tokens'],
@@ -178,6 +196,7 @@ export const ENDPOINTS: Record<RelayApiType, EndpointSpec> = {
       { field: 'query', kind: 'nonEmptyString' },
       { field: 'documents', kind: 'array', notEmpty: true },
     ],
+    modelRemap: 'keep',
     stream: null,
     usage: {
       prompt: ['meta.tokens.input_tokens', 'usage.prompt_tokens'],

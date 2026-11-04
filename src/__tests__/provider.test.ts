@@ -167,6 +167,30 @@ describe('Custom provider exact match and wildcard prefix routing tests', () => 
     expect(baseProvider).toBeNull();
   });
 
+  it('treats a slash-terminated prefix as a wildcard, not an exact id', async () => {
+    // Namespaced ids (BAAI/bge-m3, Qwen/Qwen3-8B) are common on aggregate
+    // gateways. A bare `BAAI/` must select every `BAAI/*` model — and, crucially,
+    // it selects through the prefix alone, with no `models` list to fall back on.
+    await saveCustomProvider({
+      name: 'namespaced_provider',
+      displayName: 'Namespaced Provider',
+      baseUrl: 'https://namespaced.example.com/v1',
+      modelPrefixes: ['BAAI/'],
+      headerFormat: 'openai',
+      envKeyField: 'NAMESPACED_PROVIDER_KEYS',
+      models: [],
+    });
+
+    const embeddingProvider = await resolveProvider('BAAI/bge-m3');
+    expect(embeddingProvider?.name).toBe('namespaced_provider');
+
+    const rerankerProvider = await resolveProvider('BAAI/bge-reranker-v2-m3');
+    expect(rerankerProvider?.name).toBe('namespaced_provider');
+
+    // A different namespace must not be captured.
+    expect(await resolveProvider('Qwen/Qwen3-8B')).toBeNull();
+  });
+
   it('should override built-in providers when a custom provider registers a duplicate model ID', async () => {
     // Save a custom provider registering 'gpt-5.4-mini' (which is otherwise a built-in openai model)
     await saveCustomProvider({
