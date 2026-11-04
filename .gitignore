@@ -40,3 +40,4 @@ next-env.d.ts
 # production env (contains secrets)
 .env.production
 cli/dist/
+.env*

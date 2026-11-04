@@ -6,6 +6,7 @@ import type { ProviderConfig } from './types';
 import { PROVIDERS } from './registry';
 import { getDefaultConfigStore } from '../config-store';
 import { findMatchingPriorityRule } from '../admin/priority-rules-core';
+import { ENDPOINTS, type RelayApiType } from '../relay/endpoints/spec';
 
 /**
  * Model alias mapping — lets users request common names that get
@@ -233,13 +234,29 @@ function resolveProviderBase(provider: ProviderConfig): string {
   return customBase || provider.baseUrl;
 }
 
-export function getUpstreamUrl(provider: ProviderConfig): string {
+/**
+ * Build the upstream URL for an endpoint.
+ *
+ * The path comes from the EndpointSpec's `paths` table, keyed by the provider's
+ * header format — so the URL for one endpoint differs by upstream protocol
+ * (a GPT chat request falling back to an Anthropic provider goes to /messages),
+ * but no call site carries its own path literal.
+ *
+ * Throws when the endpoint has no path for this provider format.
+ */
+export function getUpstreamUrl(provider: ProviderConfig, apiType: RelayApiType = 'chat'): string {
+  const spec = ENDPOINTS[apiType];
   const base = resolveProviderBase(provider);
+  const path = spec.paths[provider.headerFormat];
 
-  if (provider.headerFormat === 'anthropic') {
-    return `${normalizeUpstreamBase(base)}/messages`;
+  if (!path) {
+    throw new Error(
+      `${apiType} is not supported for Anthropic-format providers (${provider.displayName}).`
+    );
   }
-  return `${base}/chat/completions`;
+
+  const normalizedBase = provider.headerFormat === 'anthropic' ? normalizeUpstreamBase(base) : base;
+  return `${normalizedBase}${path}`;
 }
 
 /**
@@ -269,8 +286,7 @@ export function getUpstreamResponsesUrl(provider: ProviderConfig): string {
       `Only OpenAI-compatible providers support /v1/responses.`
     );
   }
-  const base = resolveProviderBase(provider);
-  return `${base}/responses`;
+  return getUpstreamUrl(provider, 'responses');
 }
 
 /**
@@ -282,11 +298,18 @@ export async function resolveFallbackModel(originalModel: string, targetProvider
   const allProviders = await getAllProviders();
   const targetProvider = allProviders[targetProviderName];
 
-  // 1. If the original model already starts with one of the target provider's prefixes,
-  // we can use the original model directly.
+  // 1. If the original model already belongs to the target provider — by prefix
+  // or by an exact entry in its model list — use it unchanged. Compare prefixes
+  // case-insensitively: model IDs carry mixed case (BAAI/bge-m3) while the
+  // lookup key is lowercased, so a raw startsWith() would never match.
   if (targetProvider) {
     for (const prefix of targetProvider.modelPrefixes) {
-      if (lowerModel.startsWith(prefix)) {
+      if (lowerModel.startsWith(prefix.toLowerCase())) {
+        return originalModel;
+      }
+    }
+    for (const model of targetProvider.models || []) {
+      if (model.id && model.id.toLowerCase() === lowerModel) {
         return originalModel;
       }
     }
@@ -354,9 +377,14 @@ export async function resolveFallbackModel(originalModel: string, targetProvider
       return 'claude-sonnet-4-6';
 
     default:
-      // Fallback: use the first model ID in the provider's model list if available
-      if (targetProvider && targetProvider.models && targetProvider.models.length > 0) {
-        return targetProvider.models[0].id;
+      // Only synthesise a model when the request has no explicit model at all.
+      // Remapping a caller's chosen model to models[0] silently switches the
+      // task (e.g. an embedding request answered by a different model), so an
+      // explicit model is always forwarded as-is.
+      if (!originalModel) {
+        if (targetProvider && targetProvider.models && targetProvider.models.length > 0) {
+          return targetProvider.models[0].id;
+        }
       }
       return originalModel;
   }

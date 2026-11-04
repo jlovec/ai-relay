@@ -4,7 +4,7 @@
 
 import type { AnthropicMessagesRequest, ChatCompletionRequest, ResponsesAPIRequest } from '../types';
 import type { RelayResult, ProviderConfig, ApiKey } from '../providers/types';
-import { resolveProvider, getUpstreamUrl, getUpstreamResponsesUrl, resolveModelAlias, resolveFallbackModel, resolveUpstreamModel, getAllProviders } from '../providers';
+import { resolveProvider, getUpstreamUrl, resolveModelAlias, resolveFallbackModel, resolveUpstreamModel, getAllProviders } from '../providers';
 import { selectKey, markCooldown, getKeyPool } from './key-pool';
 import { buildHeaders, transformToAnthropic } from './transform';
 import { RelayError } from '../errors';
@@ -36,7 +36,11 @@ async function getErrorStorage() {
   return _errorStorage;
 }
 
-type RelayApiType = 'chat' | 'responses' | 'anthropicMessages';
+import type { RelayApiType } from './endpoints/spec';
+import { ENDPOINTS, supportsHeaderFormat, streamNeedsTranslation } from './endpoints/spec';
+
+export type { RelayApiType };
+
 type RelayRequestBody = ChatCompletionRequest | ResponsesAPIRequest | AnthropicMessagesRequest;
 
 /**
@@ -51,13 +55,11 @@ type RelayRequestBody = ChatCompletionRequest | ResponsesAPIRequest | AnthropicM
  *     (alias resolution, virtual→real model mapping, or fallback override), or
  *   - `injectStreamOptions`: stream_options.include_usage was injected
  *     (chat / non-anthropic / non-CF streaming), or
- *   - chat → Anthropic transform (`apiType === 'chat' && isAnthropicProvider`,
- *     via transformToAnthropic), or
- *   - anthropicMessages → OpenAI transform (`apiType === 'anthropicMessages' &&
- *     !isAnthropicProvider`, via transformAnthropicToOpenAI).
+ *   - protocol translation: the spec's sourceFormat differs from the provider
+ *     format (openai-chat → anthropic, or anthropic → openai).
  *
- * The anthropicMessages→anthropic and responses paths only swap the model, so
- * an unchanged model there leaves the body byte-identical and forwardable.
+ * Same-protocol paths and passthrough endpoints only swap the model, so an
+ * unchanged model there leaves the body byte-identical and forwardable.
  *
  * Exported for direct unit testing of each disable condition.
  */
@@ -68,11 +70,15 @@ export function isRawForwardEligible(input: {
   injectStreamOptions: boolean;
 }): boolean {
   const { apiType, isAnthropicProvider, modelChanged, injectStreamOptions } = input;
-  const bodyRewritten =
-    modelChanged ||
-    injectStreamOptions ||
-    (apiType === 'chat' && isAnthropicProvider) ||
-    (apiType === 'anthropicMessages' && !isAnthropicProvider);
+  const spec = ENDPOINTS[apiType];
+
+  // Any protocol translation rewrites the body. passthrough never translates.
+  const translates =
+    spec.sourceFormat === 'openai-chat' && isAnthropicProvider
+      ? true
+      : spec.sourceFormat === 'anthropic' && !isAnthropicProvider;
+
+  const bodyRewritten = modelChanged || injectStreamOptions || translates;
   return !bodyRewritten;
 }
 
@@ -217,20 +223,23 @@ export async function relayRequest(
     );
   }
 
-  if (apiType === 'anthropicMessages') {
+  const spec = ENDPOINTS[apiType];
+
+  if (spec.requireModelPrefix) {
     const resolvedModel = await resolveModelAlias(body.model);
-    if (!resolvedModel.toLowerCase().startsWith('claude-')) {
+    const prefix = spec.requireModelPrefix;
+    if (!resolvedModel.toLowerCase().startsWith(prefix)) {
       throw new RelayError(
-        `/v1/messages requires a claude-* model. Got ${body.model} (resolves to ${resolvedModel}).`,
+        `/v1/messages requires a ${prefix}* model. Got ${body.model} (resolves to ${resolvedModel}).`,
         'invalid_request_error',
         400
       );
     }
   }
 
-  if (apiType === 'responses' && provider.headerFormat === 'anthropic') {
+  if (!supportsHeaderFormat(spec, provider.headerFormat)) {
     throw new RelayError(
-      `Responses API is not supported for Anthropic-format providers (${provider.displayName}). Only OpenAI-compatible providers support /v1/responses.`,
+      `${specLabel(apiType)} is not supported for Anthropic-format providers (${provider.displayName}).`,
       'invalid_request_error',
       400
     );
@@ -401,10 +410,12 @@ export async function relayRequest(
     // If an explicit model was specified in the fallback entry, override the request model
     const fbBody = explicitModel ? { ...body, model: explicitModel } : body;
 
-    // Skip Anthropic-format providers for Responses API (they don't support it)
-    if (apiType === 'responses' && fbProvider.headerFormat === 'anthropic') {
-      console.warn(`[fallback] ${fbProvider.displayName} does not support Responses API, skipping`);
-      errors.push({ provider: fbProvider.displayName, error: 'Responses API not supported (Anthropic format)' });
+    // A fallback provider can only serve this endpoint if the spec declares a
+    // path for its header format (e.g. /responses and /embeddings have no
+    // Anthropic path).
+    if (!supportsHeaderFormat(spec, fbProvider.headerFormat)) {
+      console.warn(`[fallback] ${fbProvider.displayName} does not support ${specLabel(apiType)}, skipping`);
+      errors.push({ provider: fbProvider.displayName, error: `${specLabel(apiType)} not supported (Anthropic format)` });
       continue;
     }
 
@@ -488,18 +499,34 @@ async function tryProviderWithRetries(
     // non-CF caller passing rawBody can never accidentally suppress usage.
     const injectStreamOptions = !!body.stream && !isAnthropic && !isCloudflareSync();
 
-    // Transform request body if needed (use resolved model name)
-    // For Responses API: pass body directly (no Anthropic transform — Responses API is OpenAI-only)
-    // For Chat API: inject stream_options and optionally transform to Anthropic format
+    // Transform request body if needed (use resolved model name).
+    //
+    // Matrix: sourceFormat (client) × provider.headerFormat (upstream).
+    //   openai-chat → openai    : swap model, inject stream_options
+    //   openai-chat → anthropic : swap model, transformToAnthropic
+    //   anthropic   → anthropic : swap model
+    //   anthropic   → openai    : transformAnthropicToOpenAI + stream_options
+    //   passthrough → openai    : swap model only (spec has no anthropic path)
+    const spec = ENDPOINTS[apiType];
+    const bodyWithResolvedModel: Record<string, unknown> = { ...body, model: resolvedModel };
     let requestBody: Record<string, unknown>;
-    if (apiType === 'responses') {
-      requestBody = { ...body, model: resolvedModel };
-    } else if (apiType === 'anthropicMessages') {
-      if (provider.headerFormat === 'anthropic') {
-        requestBody = { ...body, model: resolvedModel };
+
+    if (spec.sourceFormat === 'openai-chat') {
+      if (isAnthropic) {
+        requestBody = transformToAnthropic(bodyWithResolvedModel as ChatCompletionRequest);
+      } else {
+        if (injectStreamOptions) {
+          const existingOpts = typeof bodyWithResolvedModel.stream_options === 'object' && bodyWithResolvedModel.stream_options !== null ? bodyWithResolvedModel.stream_options : {};
+          bodyWithResolvedModel.stream_options = { include_usage: true, ...existingOpts };
+        }
+        requestBody = bodyWithResolvedModel;
+      }
+    } else if (spec.sourceFormat === 'anthropic') {
+      if (isAnthropic) {
+        requestBody = bodyWithResolvedModel;
       } else {
         const { transformAnthropicToOpenAI } = await import('./transform');
-        requestBody = transformAnthropicToOpenAI({ ...body, model: resolvedModel });
+        requestBody = transformAnthropicToOpenAI(bodyWithResolvedModel);
         // Inject stream_options for OpenAI streaming so usage arrives in the final chunk
         if (body.stream) {
           const existingOpts = typeof requestBody.stream_options === 'object' && requestBody.stream_options !== null ? requestBody.stream_options : {};
@@ -507,12 +534,8 @@ async function tryProviderWithRetries(
         }
       }
     } else {
-      const bodyWithResolvedModel: Record<string, unknown> = { ...body, model: resolvedModel };
-      if (injectStreamOptions) {
-        const existingOpts = typeof body.stream_options === 'object' && body.stream_options !== null ? body.stream_options : {};
-        bodyWithResolvedModel.stream_options = { include_usage: true, ...existingOpts };
-      }
-      requestBody = isAnthropic ? transformToAnthropic(bodyWithResolvedModel as ChatCompletionRequest) : bodyWithResolvedModel;
+      // passthrough: forward the client body verbatim, only the model changes.
+      requestBody = bodyWithResolvedModel;
     }
 
     // Raw-forward eligibility: only forward the original request text when the
@@ -532,7 +555,7 @@ async function tryProviderWithRetries(
     const startTime = Date.now();
     let url: string;
     try {
-      url = apiType === 'responses' ? getUpstreamResponsesUrl(provider) : getUpstreamUrl(provider);
+      url = getUpstreamUrl(provider, apiType);
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
       break;
@@ -631,4 +654,20 @@ async function tryProviderWithRetries(
   }
 
   return { result: null, lastError };
+}
+
+/** Human-readable endpoint label for error messages. */
+function specLabel(apiType: RelayApiType): string {
+  switch (apiType) {
+    case 'anthropicMessages':
+      return 'Anthropic Messages API';
+    case 'responses':
+      return 'Responses API';
+    case 'embeddings':
+      return 'Embeddings API';
+    case 'rerank':
+      return 'Rerank API';
+    default:
+      return 'Chat Completions API';
+  }
 }

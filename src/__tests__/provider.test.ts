@@ -310,6 +310,34 @@ describe('upstream URL construction', () => {
     envKeyField: 'OA_KEYS',
   };
 
+  it('keeps a caller model that matches a provider model by exact ID (mixed case)', async () => {
+    await saveCustomProvider({
+      name: 'siliconflow_probe',
+      displayName: 'SiliconFlow Probe',
+      baseUrl: 'https://api.siliconflow.cn/v1',
+      modelPrefixes: ['BAAI/'],
+      headerFormat: 'openai',
+      envKeyField: 'SILICONFLOW_PROBE_KEYS',
+      models: [
+        { id: 'BAAI/bge-m3', displayName: 'BGE M3', contextWindow: 8192 },
+        { id: 'BAAI/bge-reranker-v2-m3', displayName: 'BGE Reranker', contextWindow: 8192 },
+      ],
+    });
+
+    // Both the prefix (mixed case vs lowercased lookup key) and the exact model
+    // list entry must short-circuit — otherwise the request falls into the
+    // default branch and is silently rewritten to models[0].
+    await expect(resolveFallbackModel('BAAI/bge-reranker-v2-m3', 'siliconflow_probe'))
+      .resolves.toBe('BAAI/bge-reranker-v2-m3');
+    await expect(resolveFallbackModel('BAAI/bge-m3', 'siliconflow_probe'))
+      .resolves.toBe('BAAI/bge-m3');
+  });
+
+  it('does not rewrite an explicit model for a provider without a mapping rule', async () => {
+    await expect(resolveFallbackModel('some-unmapped-model', 'siliconflow_probe'))
+      .resolves.toBe('some-unmapped-model');
+  });
+
   it('builds an anthropic /messages URL under /v1 from a bare origin', () => {
     expect(getUpstreamUrl(anthropicBare)).toBe('https://sub.100xlabs.space/v1/messages');
     expect(getUpstreamCountTokensUrl(anthropicBare)).toBe('https://sub.100xlabs.space/v1/messages/count_tokens');
