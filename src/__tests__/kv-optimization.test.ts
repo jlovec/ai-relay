@@ -4,6 +4,7 @@ import { __usageStorageCacheForTests, getUsageSamplingInfo, KVUsageStorage } fro
 import { BatchUsageRecorder, createUsageEvent } from '../lib/usage';
 import { kvKeys } from '../lib/usage/storage/kv-keys';
 import { getKeyPool } from '../lib/relay/key-pool';
+import { seedLegacyBuiltInProviders } from './fixtures/legacy-builtin-providers';
 
 function installMockKV() {
   const mock = createMemoryMockKV();
@@ -285,6 +286,8 @@ describe('KV command optimization', () => {
 
   it('reads provider error stats through a single pipeline', async () => {
     const kv = installMockKV();
+    // getErrorStats walks the live provider list; `openai` is a fixture now.
+    await seedLegacyBuiltInProviders();
     const storage = new KVUsageStorage();
     const date = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
     const originalPipeline = kv.pipeline.bind(kv);

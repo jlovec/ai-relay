@@ -11,6 +11,7 @@ import { GET as modelsGET } from '../app/v1/models/route';
 import { GET, PUT, POST, DELETE } from '../app/api/admin/aliases/route';
 import { POST as importPOST } from '../app/api/admin/aliases/import/route';
 import { GET as exportGET } from '../app/api/admin/aliases/export/route';
+import { seedLegacyBuiltInProviders } from './fixtures/legacy-builtin-providers';
 
 function installMockKV() {
   const mock = createMemoryMockKV();
@@ -42,12 +43,15 @@ function csvReq(csv: string, mode = 'append') {
 }
 
 describe('model aliases admin config', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
     vi.stubEnv('RELAY_ADMIN_KEY', 'admin-test-key');
     __adminConfigCacheForTests.clear();
     installMockKV();
+    // Alias targets are validated against registered model ids; the built-ins
+    // that used to supply `gpt-5.4-mini` / `claude-sonnet-4-6` are now fixtures.
+    await seedLegacyBuiltInProviders();
   });
 
   it('persists aliases and hidden models at relay:models:aliases with a 5 minute read cache', async () => {

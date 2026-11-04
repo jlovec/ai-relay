@@ -74,7 +74,7 @@ const content = {
     },
     featureCards: [
       { icon: '↻', title: '多 Key 轮换', description: 'Round-Robin 分发请求，遇到 429 自动退避，降低单 Key 限流风险。', tier: 'p0' },
-      { icon: '⇄', title: '多 Provider 路由', description: '支持 OpenAI、Claude、DeepSeek、MiMo 与自定义 Provider，按模型前缀自动路由。', tier: 'p0' },
+      { icon: '⇄', title: '多 Provider 路由', description: '自定义 Provider 按模型前缀自动路由，OpenAI、Claude、DeepSeek、MiMo 等上游都能接。', tier: 'p0' },
       { icon: '↪', title: '多级 Fallback', description: 'Provider 到 Key Pool 的链式故障转移，让上游异常不直接暴露给客户端。', tier: 'p0' },
       { icon: '▣', title: '100% OpenAI 兼容', description: '保留 /v1/chat/completions 与 /v1/models 习惯，现有 SDK 几乎零改动接入。', tier: 'p0' },
       { icon: '▤', title: 'Admin 后台', description: '集中管理密钥、配额、用量统计、模型测试和 Provider 配置。', tier: 'p0' },
@@ -105,7 +105,7 @@ const content = {
       },
       {
         title: '添加密钥',
-        description: '进入 Admin 后台，添加 OpenAI、Claude、DeepSeek、MiMo 或自定义 Provider Key。',
+        description: '进入 Admin 后台，添加自定义 Provider 与 Key，上游可以是 OpenAI、Claude、DeepSeek、MiMo 或任何兼容服务。',
         label: 'URL',
         code: 'https://你的项目.vercel.app/admin\n# 使用 RELAY_ADMIN_KEY 登录',
       },
@@ -194,7 +194,7 @@ const content = {
     },
     featureCards: [
       { icon: '↻', title: 'Key rotation', description: 'Round-robin dispatch plus automatic 429 backoff reduces pressure on individual upstream keys.', tier: 'p0' },
-      { icon: '⇄', title: 'Provider routing', description: 'Route OpenAI, Claude, DeepSeek, MiMo, and custom providers automatically by model prefix.', tier: 'p0' },
+      { icon: '⇄', title: 'Provider routing', description: 'Custom providers route automatically by model prefix, so OpenAI, Claude, DeepSeek, MiMo, or any compatible upstream all fit.', tier: 'p0' },
       { icon: '↪', title: 'Multi-level fallback', description: 'Chained Provider and Key Pool failover keeps upstream faults away from client code.', tier: 'p0' },
       { icon: '▣', title: '100% OpenAI-compatible', description: 'Keep /v1/chat/completions and /v1/models semantics, with almost no SDK changes.', tier: 'p0' },
       { icon: '▤', title: 'Admin console', description: 'Manage keys, quotas, usage analytics, model tests, and Provider configuration in one place.', tier: 'p0' },
@@ -225,7 +225,7 @@ const content = {
       },
       {
         title: 'Add keys',
-        description: 'Open Admin and add OpenAI, Claude, DeepSeek, MiMo, or custom Provider keys.',
+        description: 'Open Admin and add a custom provider with its key — the upstream can be OpenAI, Claude, DeepSeek, MiMo, or any compatible service.',
         label: 'URL',
         code: 'https://your-project.vercel.app/admin\n# Sign in with RELAY_ADMIN_KEY',
       },
@@ -681,7 +681,7 @@ export default function Homepage({ providers }: { providers: HomepageProvider[] 
               <foreignObject x="520" y="60" width="160" height="70">
                 <div className={styles.svgNode}>
                   <span className={styles.svgNodeTitle}>{t.architecture.provider}</span>
-                  <small className={styles.svgNodeSub}>OpenAI / Claude / DeepSeek</small>
+                  <small className={styles.svgNodeSub}>Any compatible upstream</small>
                 </div>
               </foreignObject>
 

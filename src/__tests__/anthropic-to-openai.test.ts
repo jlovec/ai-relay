@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 import { transformAnthropicMessageToOpenAIChat, transformAnthropicToOpenAI, transformOpenAIToAnthropic } from '../lib/relay/transform';
 import { clearFallbackChain, savePriorityRules, setFallbackChain } from '../lib/admin/admin-config';
+import { seedLegacyBuiltInProviders } from './fixtures/legacy-builtin-providers';
 
 describe('Anthropic-to-OpenAI Payload Translation', () => {
   it('should translate basic Anthropic request to OpenAI format', () => {
@@ -256,6 +257,7 @@ describe('OpenAI Chat to Anthropic Fallback Transparency', () => {
     vi.stubEnv('CLAUDE_KEYS', 'anthropic-upstream-key');
     vi.stubEnv('RELAY_DAILY_LIMIT', '0');
     vi.stubEnv('RELAY_MONTHLY_LIMIT', '0');
+    await seedLegacyBuiltInProviders();
     await clearFallbackChain('anthropic');
     await setFallbackChain('openai', ['anthropic']);
   });
@@ -374,6 +376,7 @@ describe('Anthropic-to-OpenAI End-to-End Routing', () => {
     vi.stubEnv('OPENAI_KEYS', 'openai-upstream-key');
     vi.stubEnv('RELAY_DAILY_LIMIT', '0');
     vi.stubEnv('RELAY_MONTHLY_LIMIT', '0');
+    await seedLegacyBuiltInProviders();
     await savePriorityRules([
       { id: 'rule1', name: 'Claude to OpenAI', enabled: true, modelPattern: 'claude-*', providerOrder: ['openai'] }
     ]);
@@ -598,6 +601,7 @@ describe('count_tokens endpoint', () => {
     vi.stubEnv('CLAUDE_KEYS', 'anthropic-upstream-key');
     vi.stubEnv('RELAY_DAILY_LIMIT', '0');
     vi.stubEnv('RELAY_MONTHLY_LIMIT', '0');
+    await seedLegacyBuiltInProviders();
   });
 
   function countReq(body: unknown, key = 'relay-test-key') {

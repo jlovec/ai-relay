@@ -19,6 +19,7 @@ import {
 } from '../lib/admin/admin-config';
 import { clearProvidersCache } from '../lib/providers/resolver';
 import type { ProviderConfig } from '../lib/providers/types';
+import { seedLegacyBuiltInProviders } from './fixtures/legacy-builtin-providers';
 
 describe('Vercel KV Backup & Restore Tests', () => {
   beforeEach(() => {
@@ -250,6 +251,9 @@ describe('Statistics Backup & Restore Tests', () => {
     const globalObj = global as any;
     const originalMockKV = globalObj._mockKVInstance;
     globalObj._mockKVInstance = mockKV;
+    // exportStatsData walks the live provider list, so `openai` must still be a
+    // registered provider name even though the registry no longer ships it.
+    await seedLegacyBuiltInProviders();
 
     try {
       // 1. Export statistics backup

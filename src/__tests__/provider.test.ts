@@ -6,8 +6,24 @@ import {
   __adminConfigCacheForTests,
   createMemoryMockKV,
 } from '../lib/admin/admin-config';
+import { seedLegacyBuiltInProviders } from './fixtures/legacy-builtin-providers';
 
 describe('GPT provider resolution tests', () => {
+  beforeEach(async () => {
+    __adminConfigCacheForTests.clear();
+    clearProvidersCache();
+    const mock = createMemoryMockKV();
+    (global as any)._mockKVInstance = mock;
+    (global as any)._mockKVInstance._isMock = true;
+    await seedLegacyBuiltInProviders();
+  });
+
+  afterEach(() => {
+    delete (global as any)._mockKVInstance;
+    __adminConfigCacheForTests.clear();
+    clearProvidersCache();
+  });
+
   it('should route GPT models to OpenAI', async () => {
     const gpt55Provider = await resolveProvider('gpt-5.5');
     expect(gpt55Provider).not.toBeNull();
@@ -32,6 +48,21 @@ describe('GPT provider resolution tests', () => {
 });
 
 describe('mimo-v2.5 provider resolution and mapping tests', () => {
+  beforeEach(async () => {
+    __adminConfigCacheForTests.clear();
+    clearProvidersCache();
+    const mock = createMemoryMockKV();
+    (global as any)._mockKVInstance = mock;
+    (global as any)._mockKVInstance._isMock = true;
+    await seedLegacyBuiltInProviders();
+  });
+
+  afterEach(() => {
+    delete (global as any)._mockKVInstance;
+    __adminConfigCacheForTests.clear();
+    clearProvidersCache();
+  });
+
   it('should resolve the correct provider for each mimo-v2.5 variant', async () => {
     // mimo-v2.5-coding should resolve to xiaomi_coding
     const codingProvider = await resolveProvider('mimo-v2.5-coding');
@@ -125,6 +156,11 @@ describe('Custom provider exact match and wildcard prefix routing tests', () => 
   });
 
   it('should only resolve exact match or wildcard prefixes, avoiding hijacking similar models', async () => {
+    // `openai` is seeded as a fixture only so this case can assert that a
+    // `gpt-4` exact prefix does not capture the neighbouring `gpt-4o` / `gpt-4.1`
+    // ids. The live registry no longer ships it.
+    await seedLegacyBuiltInProviders();
+    clearProvidersCache();
     await saveCustomProvider({
       name: 'my_custom_provider',
       displayName: 'My Custom Provider',

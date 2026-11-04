@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
+import { seedLegacyBuiltInProviders } from './fixtures/legacy-builtin-providers';
 
 function req(body: unknown, key = 'relay-test-key') {
   return new NextRequest('http://localhost/v1/messages', {
@@ -14,7 +15,7 @@ function req(body: unknown, key = 'relay-test-key') {
 }
 
 describe('Anthropic Messages API relay', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.resetModules();
     vi.restoreAllMocks();
     vi.stubEnv('NODE_ENV', 'test');
@@ -22,6 +23,7 @@ describe('Anthropic Messages API relay', () => {
     vi.stubEnv('CLAUDE_KEYS', 'claude-upstream-key');
     vi.stubEnv('RELAY_DAILY_LIMIT', '0');
     vi.stubEnv('RELAY_MONTHLY_LIMIT', '0');
+    await seedLegacyBuiltInProviders();
   });
 
   it('accepts x-api-key relay auth and forwards native Claude messages to Anthropic providers', async () => {

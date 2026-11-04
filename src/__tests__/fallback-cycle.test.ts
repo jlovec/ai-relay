@@ -6,16 +6,27 @@ import {
   saveCustomProvider,
   setFallbackChain,
   clearFallbackChain,
+  __adminConfigCacheForTests,
+  createMemoryMockKV,
 } from '../lib/admin/admin-config';
 import * as resolver from '../lib/providers';
 import { relayRequest } from '../lib/relay/relay';
 import { PROVIDERS } from '../lib/providers/registry';
+import { seedLegacyBuiltInProviders } from './fixtures/legacy-builtin-providers';
 
 describe('Fallback Circular Dependency Tests', () => {
   let providersSpy: any;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.stubEnv('NODE_ENV', 'test');
+    __adminConfigCacheForTests.clear();
+    const mockKV = createMemoryMockKV();
+    (global as any)._mockKVInstance = mockKV;
+    (global as any)._mockKVInstance._isMock = true;
+    // The registry no longer ships built-in providers, so seed them as custom
+    // ones: `deleteCustomProvider` only walks registry ∪ custom names, and
+    // relayRequest needs a provider that resolves the `gpt-` prefix.
+    await seedLegacyBuiltInProviders();
     // Set up mock providers
     providersSpy = vi.spyOn(resolver, 'getAllProviders').mockResolvedValue({
       openai: {

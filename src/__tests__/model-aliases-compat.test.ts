@@ -9,6 +9,7 @@ import {
 import { GET, POST } from '../app/api/admin/model-aliases/route';
 import { POST as importPOST } from '../app/api/admin/model-aliases/import/route';
 import { GET as exportGET } from '../app/api/admin/model-aliases/export/route';
+import { seedLegacyBuiltInProviders } from './fixtures/legacy-builtin-providers';
 
 function installMockKV() {
   const mock = createMemoryMockKV();
@@ -41,12 +42,13 @@ function csvReq(csv: string, mode = 'append', preview = false) {
 }
 
 describe('model-aliases compatibility API', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
     vi.stubEnv('RELAY_ADMIN_KEY', 'admin-test-key');
     __adminConfigCacheForTests.clear();
     installMockKV();
+    await seedLegacyBuiltInProviders();
   });
 
   it('serves CRUD at /api/admin/model-aliases while preserving /api/admin/aliases shape', async () => {
