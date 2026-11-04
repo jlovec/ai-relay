@@ -6,7 +6,14 @@
 
 ## [Unreleased]
 
-（暂无）
+### Added
+- **Embeddings 与 Rerank 端点**：新增 `/v1/embeddings` 与 `/v1/rerank`，支持向量生成与文档重排。均为非流式透传，用量分别从 `usage.prompt_tokens` 与 `meta.tokens.input_tokens` 读取。
+
+### Changed
+- **接口统一化重构**：五个端点收敛为一张声明式规格表 `src/lib/relay/endpoints/spec.ts` 加一个统一 handler `createRelayHandler()`。请求转换、流式包装、用量提取分别由数据驱动，五个路由文件各 15 行薄壳。转换与转发行为不变。
+
+### Fixed
+- **模型名大小写导致 fallback 改写**：`resolveFallbackModel` 用 `startsWith` 比较模型名前缀时未统一大小写，大小写混合的前缀（如 `BAAI/`）永远匹配失败，请求模型会被静默改写为该 Provider 的第一个模型。现改为小写比较并优先匹配精确模型 ID。
 
 ## [2.13.0] - 2026-06-11
 

@@ -213,6 +213,7 @@ npm run dev  # http://localhost:3000
 |------|------|
 | OpenAI 兼容 | `/v1/chat/completions` · `/v1/responses` · 流式 SSE，直接用 OpenAI SDK |
 | Anthropic 原生 | `/v1/messages` 端点，Claude 客户端直连无需转换 |
+| 向量与重排 | `/v1/embeddings` · `/v1/rerank`，生成向量与文档重排，非流式透传 |
 | 虚拟模型映射 | 将虚拟模型名路由到真实 Provider，按需切换底层模型 |
 
 **管理与监控**

@@ -212,6 +212,7 @@ npm run dev  # http://localhost:3000
 |---------|-------------|
 | OpenAI compatible | `/v1/chat/completions` · `/v1/responses` · SSE streaming — use OpenAI SDK directly |
 | Anthropic native | `/v1/messages` endpoint — Claude clients connect without conversion |
+| Embeddings & rerank | `/v1/embeddings` · `/v1/rerank` — vector generation and document reranking, non-streaming passthrough |
 | Virtual model mapping | Route virtual model names to real providers, swap underlying models on demand |
 
 **Management & Monitoring**
