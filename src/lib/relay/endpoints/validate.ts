@@ -191,6 +191,21 @@ export function estimateRerankPromptTokens(body: Record<string, unknown>): numbe
   return Math.max(1, Math.ceil(totalChars / CHARS_PER_TOKEN));
 }
 
+/**
+ * System One has no messages[] — its prompt is `state` plus the `questions`
+ * rubric, both of which are plain JSON. Counting the serialized body is the
+ * closest local proxy when the upstream omits usage.
+ */
+export function estimateSystemOnePromptTokens(body: Record<string, unknown>): number {
+  let totalChars = 0;
+  for (const field of ['state', 'questions']) {
+    const value = body[field];
+    if (value === undefined || value === null) continue;
+    totalChars += typeof value === 'string' ? value.length : JSON.stringify(value).length;
+  }
+  return Math.max(1, Math.ceil(totalChars / CHARS_PER_TOKEN));
+}
+
 export function estimatePromptTokensFor(estimate: string, body: Record<string, unknown>): number {
   switch (estimate) {
     case 'chat':
@@ -203,6 +218,8 @@ export function estimatePromptTokensFor(estimate: string, body: Record<string, u
       return estimateEmbeddingsPromptTokens(body);
     case 'rerank':
       return estimateRerankPromptTokens(body);
+    case 'systemone':
+      return estimateSystemOnePromptTokens(body);
     default:
       return 0;
   }

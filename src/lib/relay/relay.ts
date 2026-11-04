@@ -671,6 +671,8 @@ function specLabel(apiType: RelayApiType): string {
       return 'Embeddings API';
     case 'rerank':
       return 'Rerank API';
+    case 'systemone':
+      return 'System One API';
     default:
       return 'Chat Completions API';
   }

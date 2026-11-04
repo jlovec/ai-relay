@@ -12,7 +12,8 @@ export type RelayApiType =
   | 'anthropicMessages'
   | 'responses'
   | 'embeddings'
-  | 'rerank';
+  | 'rerank'
+  | 'systemone';
 
 export type HeaderFormat = 'openai' | 'anthropic' | 'azure';
 
@@ -31,7 +32,7 @@ export type SourceFormat = 'openai-chat' | 'anthropic' | 'passthrough';
  */
 export type StreamKind = 'openai-chat' | 'anthropic' | 'responses' | null;
 
-export type EstimateKind = 'chat' | 'messages' | 'responses' | 'embeddings' | 'rerank';
+export type EstimateKind = 'chat' | 'messages' | 'responses' | 'embeddings' | 'rerank' | 'systemone';
 
 export interface RequiredField {
   field: string;
@@ -202,6 +203,29 @@ export const ENDPOINTS: Record<RelayApiType, EndpointSpec> = {
       prompt: ['meta.tokens.input_tokens', 'usage.prompt_tokens'],
       completion: [],
       estimate: 'rerank',
+    },
+  },
+
+  systemone: {
+    apiType: 'systemone',
+    sourceFormat: 'passthrough',
+    errorStyle: 'openai',
+    // System One has no Azure variant; only OpenAI-compatible upstreams serve it.
+    paths: { openai: '/systemone' },
+    required: [
+      { field: 'model', kind: 'nonEmptyString' },
+      { field: 'state', notEmpty: true },
+      { field: 'questions', notEmpty: true },
+    ],
+    modelRemap: 'keep',
+    // No streaming mode: the upstream rejects any request carrying `stream`,
+    // even `stream: false`. Leaving this null keeps wantsStream permanently
+    // false, so the handler never tries to wrap a non-SSE body.
+    stream: null,
+    usage: {
+      prompt: ['usage.input_tokens', 'usage.prompt_tokens'],
+      completion: ['usage.output_tokens', 'usage.completion_tokens'],
+      estimate: 'systemone',
     },
   },
 };
