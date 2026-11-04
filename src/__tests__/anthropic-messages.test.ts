@@ -47,6 +47,7 @@ describe('Anthropic Messages API relay', () => {
 
     expect(res.status).toBe(200);
     expect(res.headers.get('X-Relay-Provider')).toBe('anthropic');
+    // No built-in alias table any more: the requested name reaches upstream as-is.
     expect(fetchMock).toHaveBeenCalledWith('https://api.anthropic.com/v1/messages', expect.objectContaining({
       method: 'POST',
       headers: expect.objectContaining({
@@ -54,7 +55,7 @@ describe('Anthropic Messages API relay', () => {
         'anthropic-version': '2023-06-01',
       }),
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
+        model: 'claude-sonnet',
         max_tokens: 32,
         messages: [{ role: 'user', content: 'ping' }],
       }),

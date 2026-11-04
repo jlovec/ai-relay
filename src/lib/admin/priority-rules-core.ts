@@ -179,7 +179,7 @@ function patternsOverlap(a: string, b: string): string | null {
     'gpt-5.4-mini',
     'gpt-5.5',
     'gpt-5.4',
-    'deepseek-fast',
+    'deepseek-flash',
     'claude-sonnet-4-6',
   ]));
   return candidates.find((candidate) => matchesPriorityPattern(candidate, a) && matchesPriorityPattern(candidate, b)) || null;

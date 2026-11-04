@@ -9,23 +9,12 @@ import { findMatchingPriorityRule } from '../admin/priority-rules-core';
 import { ENDPOINTS, type RelayApiType } from '../relay/endpoints/spec';
 
 /**
- * Model alias mapping — lets users request common names that get
- * transparently rewritten to the actual upstream model ID.
- */
-const MODEL_ALIASES: Record<string, string> = {
-  'gpt-best': 'gpt-5.5',
-  'gpt-latest': 'gpt-5.4',
-  'gpt-fast': 'gpt-5.4-mini',
-  'gpt-cheap': 'gpt-5.4-nano',
-  'claude-best': 'claude-opus-4-7',
-  'claude-sonnet': 'claude-sonnet-4-6',
-  'claude-fast': 'claude-haiku-4-5-20251001',
-  'deepseek-fast': 'deepseek-v4-flash',
-  'deepseek-pro': 'deepseek-v4-pro',
-};
-
-/**
  * Resolve a model alias to its actual model name.
+ *
+ * Aliases come only from the KV config now — there are no built-in defaults.
+ * Users author every alias (and per-provider rewrites via `modelMapping`), so a
+ * model name that nobody aliased travels through untouched.
+ *
  * Returns the original name if no alias exists.
  */
 export async function resolveModelAlias(model: string, forceRefresh = false): Promise<string> {
@@ -38,13 +27,13 @@ export async function resolveModelAlias(model: string, forceRefresh = false): Pr
     for (let depth = 0; depth < 5; depth++) {
       if (seen.has(requested)) return original;
       seen.add(requested);
-      const next = config.aliases[requested] || MODEL_ALIASES[requested];
+      const next = config.aliases[requested];
       if (!next) return depth === 0 ? original : requested;
       requested = next.toLowerCase();
     }
     return original;
   } catch {
-    return MODEL_ALIASES[requested] || model;
+    return model;
   }
 }
 

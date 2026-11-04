@@ -8,18 +8,6 @@ export const dynamic = 'force-dynamic';
 
 type AliasRow = { target: string; source: 'system' | 'user' };
 
-const SYSTEM_ALIASES: Record<string, string> = {
-  'gpt-best': 'gpt-5.5',
-  'gpt-latest': 'gpt-5.4',
-  'gpt-fast': 'gpt-5.4-mini',
-  'gpt-cheap': 'gpt-5.4-nano',
-  'claude-best': 'claude-opus-4-7',
-  'claude-sonnet': 'claude-sonnet-4-6',
-  'claude-fast': 'claude-haiku-4-5-20251001',
-  'deepseek-fast': 'deepseek-v4-flash',
-  'deepseek-pro': 'deepseek-v4-pro',
-};
-
 const ALIAS_RE = /^[a-z0-9_-]+$/;
 
 function error(message: string, status = 400) {
@@ -48,9 +36,6 @@ async function isRegisteredModel(target: string): Promise<boolean> {
 async function responsePayload() {
   const config = await getModelAliasConfig(true);
   const aliases: Record<string, AliasRow> = {};
-  for (const [alias, target] of Object.entries(SYSTEM_ALIASES)) {
-    aliases[alias] = { target, source: 'system' };
-  }
   for (const [alias, target] of Object.entries(config.aliases)) {
     aliases[alias] = { target, source: 'user' };
   }
@@ -107,7 +92,6 @@ export async function DELETE(request: NextRequest) {
   const alias = normalizeAlias(new URL(request.url).searchParams.get('alias'));
   const validation = validateAlias(alias);
   if (validation) return error(validation);
-  if (SYSTEM_ALIASES[alias]) return error('System aliases cannot be deleted');
   const config = await getModelAliasConfig(true);
   delete config.aliases[alias];
   await saveModelAliasConfig(config);

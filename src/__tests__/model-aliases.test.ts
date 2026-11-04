@@ -68,12 +68,13 @@ describe('model aliases admin config', () => {
     expect(kv.get).toHaveBeenCalledTimes(1);
   });
 
-  it('resolves user aliases from KV before falling back to system aliases', async () => {
+  it('resolves user aliases from KV and leaves un-aliased names untouched', async () => {
     await saveModelAliasConfig({ aliases: { fast: 'gpt-5.4-mini', flagship: 'gpt-5.5' }, hidden: [] });
 
     await expect(resolveModelAlias('FAST')).resolves.toBe('gpt-5.4-mini');
     await expect(resolveModelAlias('flagship')).resolves.toBe('gpt-5.5');
-    await expect(resolveModelAlias('claude-sonnet')).resolves.toBe('claude-sonnet-4-6');
+    // Built-in aliases no longer exist; only user-authored ones rewrite.
+    await expect(resolveModelAlias('claude-sonnet')).resolves.toBe('claude-sonnet');
   });
 
   it('rejects aliases whose target model is not registered in any provider', async () => {

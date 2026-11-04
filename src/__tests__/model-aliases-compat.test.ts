@@ -62,7 +62,8 @@ describe('model-aliases compatibility API', () => {
     res = await GET(jsonReq('GET'));
     const body = await res.json();
     expect(body.aliases.bossfast).toMatchObject({ target: 'gpt-5.4-mini', source: 'user' });
-    expect(body.aliases['gpt-fast']).toMatchObject({ source: 'system' });
+    // No built-in aliases are seeded into the list any more.
+    expect(body.aliases['gpt-fast']).toBeUndefined();
   });
 
   it('previews CSV import without persisting and reports duplicate/append conflicts', async () => {
@@ -80,14 +81,15 @@ describe('model-aliases compatibility API', () => {
     await expect(getModelAliasConfig()).resolves.toMatchObject({ aliases: { fast: 'gpt-5.4-mini' } });
   });
 
-  it('exports system and user aliases from the model-aliases endpoint for round-trip backup', async () => {
+  it('exports user aliases from the model-aliases endpoint for round-trip backup', async () => {
     await saveModelAliasConfig({ aliases: { fast: 'gpt-5.4-mini' }, hidden: ['gpt-5.4'] });
 
     const res = await exportGET(jsonReq('GET', undefined, 'http://localhost/api/admin/model-aliases/export'));
     expect(res.headers.get('content-type')).toContain('text/csv');
     const csv = await res.text();
     expect(csv).toContain('alias,target_model,hidden,note');
-    expect(csv).toContain('gpt-latest,gpt-5.4,true,系统默认');
     expect(csv).toContain('fast,gpt-5.4-mini,false,用户自定义');
+    // Built-in rows are gone, so the export carries only what the user authored.
+    expect(csv).not.toContain('系统默认');
   });
 });
