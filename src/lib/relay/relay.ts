@@ -216,8 +216,17 @@ export async function relayRequest(
 ): Promise<RelayResult> {
   const provider = await resolveProvider(body.model);
   if (!provider) {
+    // List the prefixes that actually resolve today. The built-in providers are
+    // gone, so a hardcoded list would name prefixes nothing serves any more.
+    const prefixes = Object.values(await getAllProviders())
+      .flatMap((config) => config.modelPrefixes)
+      .filter((prefix, index, all) => all.indexOf(prefix) === index)
+      .sort();
+    const hint = prefixes.length > 0
+      ? ` Supported prefixes: ${prefixes.join(', ')}`
+      : ' No provider prefixes are configured.';
     throw new RelayError(
-      `Unknown model: ${body.model}. Supported prefixes: gpt-, claude-, deepseek-, mimo-`,
+      `Unknown model: ${body.model}.${hint}`,
       'invalid_request_error',
       400
     );
