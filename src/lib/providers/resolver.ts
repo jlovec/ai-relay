@@ -38,6 +38,25 @@ export async function resolveModelAlias(model: string, forceRefresh = false): Pr
 }
 
 /**
+ * Pick the provider that a matched priority rule would actually route to.
+ *
+ * The rule's providerOrder is an ordered preference list, and the first entry
+ * that exists in the registry wins — regardless of whether that provider
+ * declares the model. This mirrors resolveProvider below, so callers that need
+ * to report which provider serves a model (e.g. /v1/models) stay in agreement
+ * with the router instead of re-deriving the answer from declarations.
+ *
+ * Returns null when no rule matched or none of its providers exist.
+ */
+export function pickPriorityRuleProvider(
+  providerOrder: string[],
+  allProviders: Record<string, ProviderConfig>
+): { id: string; config: ProviderConfig } | null {
+  const name = providerOrder.find((providerName) => allProviders[providerName]);
+  return name ? { id: name, config: allProviders[name] } : null;
+}
+
+/**
  * Resolve which provider a model name belongs to.
  * Automatically resolves aliases before matching.
  * Returns null if no provider matches.
@@ -128,8 +147,8 @@ export async function resolveProvider(model: string): Promise<ProviderConfig | n
     const store = getDefaultConfigStore();
     const priorityRule = findMatchingPriorityRule(await store.getPriorityRules(), lowerModel);
     if (priorityRule) {
-      const preferred = priorityRule.providerOrder.find((providerName) => allProviders[providerName]);
-      if (preferred) return allProviders[preferred];
+      const preferred = pickPriorityRuleProvider(priorityRule.providerOrder, allProviders);
+      if (preferred) return preferred.config;
     }
   } catch {
     // Priority rules are an admin override. If KV/config is unavailable, fall back to legacy prefix matching.
