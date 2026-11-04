@@ -94,6 +94,12 @@ describe('iteration one provider CRUD UI helpers', () => {
           fetchedProviderModels: '供应商支持的模型',
           addAllFetchedModels: '一键添加全部',
           addModel: '添加模型',
+          modelMappingList: '模型改写',
+          addModelMapping: '添加改写',
+          removeModelMapping: '删除',
+          modelMappingFrom: '请求模型名',
+          modelMappingTo: '上游模型名',
+          modelMappingHint: '留空则原名透传',
           modelId: '模型 ID',
           modelDisplayName: '模型显示名',
           contextWindow: '上下文',
@@ -132,6 +138,8 @@ describe('iteration one provider CRUD UI helpers', () => {
     expect(html).toContain('取消全部');
     expect(html).toContain('一键删除全部');
     expect(html).not.toContain('复用现有模型');
+    expect(html).toContain('模型改写');
+    expect(html).toContain('添加改写');
     expect(html).toContain('overscroll-behavior:contain');
     expect(html).toContain('touch-action:pan-y');
   });

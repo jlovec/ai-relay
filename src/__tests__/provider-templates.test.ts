@@ -7,6 +7,7 @@ import {
   validateDraftProvider,
   parseModelPrefixes,
   buildDraftProvider,
+  buildModelMappingPayload,
 } from '@/app/admin/components/provider-templates';
 
 describe('provider templates', () => {
@@ -131,5 +132,17 @@ describe('provider templates', () => {
       modelPrefixes: ['gpt-', 'gpt-5.4-'],
       models: [{ id: 'gpt-5.4', displayName: 'GPT-5.4', contextWindow: 128000 }],
     });
+  });
+
+  it('collapses rewrite rows into a mapping and drops blank ones', () => {
+    expect(buildModelMappingPayload([
+      { from: ' deepseek-flash ', to: 'deepseek-v4.1-flash' },
+      { from: '', to: 'orphan' },
+      { from: 'lonely', to: '   ' },
+    ])).toEqual({ 'deepseek-flash': 'deepseek-v4.1-flash' });
+
+    // No surviving row means "leave the stored table alone", not "clear it".
+    expect(buildModelMappingPayload([{ from: '', to: '' }])).toBeUndefined();
+    expect(buildModelMappingPayload([])).toBeUndefined();
   });
 });

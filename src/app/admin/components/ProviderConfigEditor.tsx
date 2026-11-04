@@ -125,6 +125,8 @@ export default function ProviderConfigEditor({
                       headerFormat: currentProviderObj.headerFormat || 'openai',
                       modelPrefixes: currentProviderObj.modelPrefixes || [],
                       models: currentProviderObj.models || [],
+                      modelMapping: currentProviderObj.modelMapping,
+                      sessionHeader: currentProviderObj.sessionHeader,
                       keyCount: currentProviderObj.keyCount || 0,
                       userAgent: currentProviderObj.userAgent,
                     });

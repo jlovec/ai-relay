@@ -25,6 +25,8 @@ export interface ProviderInfo {
   isCustom?: boolean;
   baseUrl?: string;
   headerFormat?: 'openai' | 'anthropic' | 'azure';
+  modelMapping?: Record<string, string>;
+  sessionHeader?: 'opencode-go';
   envKeyField?: string;
   userAgent?: string;
   errors?: Record<string, number>;

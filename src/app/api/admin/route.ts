@@ -58,6 +58,8 @@ export async function GET(request: NextRequest) {
       isCustom: config.isCustom || false,
       modelPrefixes: config.modelPrefixes,
       models: config.models || [],
+      modelMapping: config.modelMapping,
+      sessionHeader: config.sessionHeader,
       envKeyField: config.envKeyField,
       baseUrl: config.baseUrl,
       headerFormat: config.headerFormat,

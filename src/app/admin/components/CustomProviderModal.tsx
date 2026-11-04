@@ -7,6 +7,7 @@ import {
   PROVIDER_TEMPLATES,
   applyProviderTemplate,
   buildDraftProviderFromForm,
+  buildModelMappingPayload,
   validateApiKeyInput,
   validateDraftProvider,
   type ProviderTemplate,
@@ -49,6 +50,9 @@ export default function CustomProviderModal({
   const [formModelPrefixes, setFormModelPrefixes] = useState('');
   const [formUserAgent, setFormUserAgent] = useState('');
   const [formModels, setFormModels] = useState<any[]>([]);
+  // Rewrite table rows, kept as an ordered array while editing so blank or
+  // half-filled rows are visible and fixable; collapsed to an object on save.
+  const [formModelMapping, setFormModelMapping] = useState<Array<{ from: string; to: string }>>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState('openai');
   const [apiKeyValue, setApiKeyValue] = useState('');
   const [selectedKeyHash, setSelectedKeyHash] = useState('');
@@ -94,6 +98,12 @@ export default function CustomProviderModal({
       setFormModelPrefixes((editingCustomProvider.modelPrefixes || []).join(', '));
       setFormUserAgent(editingCustomProvider.userAgent || '');
       setFormModels(editingCustomProvider.models || []);
+      setFormModelMapping(
+        Object.entries(editingCustomProvider.modelMapping || {}).map(([from, to]) => ({
+          from,
+          to: String(to),
+        }))
+      );
       setFetchedProviderModels([]);
 
       // Check if there are existing keys
@@ -119,6 +129,7 @@ export default function CustomProviderModal({
       setFormModelPrefixes(form.modelPrefixes.join(', '));
       setFormUserAgent('');
       setFormModels([]);
+      setFormModelMapping([]);
       setApiKeyValue('');
       setSelectedKeyHash('');
       setUseExistingKey(false);
@@ -158,6 +169,20 @@ export default function CustomProviderModal({
 
   const handleFormClearModels = () => {
     setFormModels([]);
+  };
+
+  const handleAddModelMapping = () => {
+    setFormModelMapping([...formModelMapping, { from: '', to: '' }]);
+  };
+
+  const handleFormUpdateModelMapping = (index: number, fields: Partial<{ from: string; to: string }>) => {
+    setFormModelMapping((current) =>
+      current.map((row, i) => (i === index ? { ...row, ...fields } : row))
+    );
+  };
+
+  const handleFormRemoveModelMapping = (index: number) => {
+    setFormModelMapping((current) => current.filter((_, i) => i !== index));
   };
 
   // data is still accepted for modal contract parity with parent components.
@@ -1042,6 +1067,95 @@ export default function CustomProviderModal({
               )}
             </div>
           </div>
+
+          {/* Model Mapping Section */}
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '1rem', marginTop: '0.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <label style={{ fontWeight: '600', fontSize: '0.95rem', color: '#fff' }}>
+                {t.modelMappingList}
+              </label>
+              <button
+                type="button"
+                onClick={handleAddModelMapping}
+                style={{
+                  padding: '0.3rem 0.6rem',
+                  borderRadius: '4px',
+                  border: '1px solid rgba(59, 130, 246, 0.4)',
+                  backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                  color: '#60a5fa',
+                  cursor: 'pointer',
+                  fontSize: '0.8rem',
+                }}
+              >
+                {t.addModelMapping}
+              </button>
+            </div>
+            <div style={{ fontSize: '0.72rem', color: '#6b7280', marginBottom: '0.6rem' }}>
+              {t.modelMappingHint}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {formModelMapping.map((row, index) => (
+                <div
+                  key={index}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr auto',
+                    gap: '0.5rem',
+                    alignItems: 'center',
+                  }}
+                >
+                  <input
+                    type="text"
+                    placeholder={t.modelMappingFrom}
+                    value={row.from}
+                    onChange={(e) => handleFormUpdateModelMapping(index, { from: e.target.value })}
+                    style={{
+                      padding: '0.4rem 0.6rem',
+                      borderRadius: '4px',
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                      backgroundColor: 'rgba(0, 0, 0, 0.25)',
+                      color: '#fff',
+                      fontSize: '0.85rem',
+                    }}
+                  />
+                  <input
+                    type="text"
+                    placeholder={t.modelMappingTo}
+                    value={row.to}
+                    onChange={(e) => handleFormUpdateModelMapping(index, { to: e.target.value })}
+                    style={{
+                      padding: '0.4rem 0.6rem',
+                      borderRadius: '4px',
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                      backgroundColor: 'rgba(0, 0, 0, 0.25)',
+                      color: '#fff',
+                      fontSize: '0.85rem',
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleFormRemoveModelMapping(index)}
+                    style={{
+                      padding: '0.4rem 0.6rem',
+                      borderRadius: '4px',
+                      border: 'none',
+                      backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                      color: '#ef4444',
+                      cursor: 'pointer',
+                      fontSize: '0.8rem',
+                    }}
+                  >
+                    {t.removeModelMapping}
+                  </button>
+                </div>
+              ))}
+              {formModelMapping.length === 0 && (
+                <div style={{ textAlign: 'center', color: '#9ca3af', fontSize: '0.85rem', padding: '1rem', border: '1px dashed rgba(255,255,255,0.06)', borderRadius: '6px' }}>
+                  {lang === 'zh' ? '暂无改写，请求模型名将原样透传给上游。' : 'No rewrites. Requested names pass through untouched.'}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '1rem' }}>
@@ -1089,6 +1203,11 @@ export default function CustomProviderModal({
                 userAgent: formUserAgent.trim() || undefined,
                 models: formModels
               };
+              const modelMapping = buildModelMappingPayload(formModelMapping);
+              if (modelMapping) providerToSave.modelMapping = modelMapping;
+              if (editingCustomProvider?.sessionHeader) {
+                providerToSave.sessionHeader = editingCustomProvider.sessionHeader;
+              }
               if (!useExistingKey && apiKeyValue.trim()) {
                 providerToSave.apiKey = apiKeyValue.trim();
               }

@@ -213,6 +213,22 @@ export function buildDraftProvider(input: {
 
 export const buildDraftProviderFromForm = buildDraftProvider;
 
+/**
+ * Collapse the rewrite editor rows into the `modelMapping` payload.
+ *
+ * Rows with an empty side are dropped rather than sent empty, so a blank row
+ * left behind in the UI cannot erase a stored rewrite. Returns `undefined` when
+ * no row survives, which callers treat as "leave the stored table alone".
+ */
+export function buildModelMappingPayload(
+  rows: Array<{ from: string; to: string }>
+): Record<string, string> | undefined {
+  const entries = rows
+    .map((row) => [row.from.trim(), row.to.trim()] as const)
+    .filter(([from, to]) => from !== '' && to !== '');
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+}
+
 export function validateApiKeyInput(apiKey: string, minLength = 20): string | null {
   const trimmed = apiKey.trim();
   if (!trimmed) {
